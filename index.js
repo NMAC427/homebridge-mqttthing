@@ -689,8 +689,8 @@ function makeThing( log, accessoryConfig, api ) {
                 };
             }
 
-            function RGBtoScaledHSV( r, g, b ) {
-                var hsv = RGBtoHSV( r, g, b );
+            function RGBtoScaledHSV( ...args ) {
+                var hsv = RGBtoHSV( ...args );
                 return {
                     h: hsv.h * 360,
                     s: hsv.s * 100,
@@ -1089,6 +1089,160 @@ function makeThing( log, accessoryConfig, api ) {
                 if( supportAdaptiveLighting() ) {
                     characteristic_ColorTemperature_Internal( service );
                 }
+            }
+
+            function CTtoRGB( value ) {
+                // Source: https://github.com/AMoo-Miki/homebridge-tuya-lan/blob/master/lib/BaseAccessory.js#L258
+                const dKelvin = 10000 / value;
+                const rgb = [
+                    dKelvin > 66 
+                        ? 351.97690566805693 + 0.114206453784165   * ( dKelvin - 55 ) - 40.25366309332127 * Math.log( dKelvin - 55 )
+                        : 255,
+                    dKelvin > 66 
+                        ? 325.4494125711974  + 0.07943456536662342 * ( dKelvin - 50 ) - 28.0852963507957  * Math.log( dKelvin - 55 ) 
+                        : 104.49216199393888 * Math.log( dKelvin - 2 ) - 0.44596950469579133 * ( dKelvin - 2 ) - 155.25485562709179,
+                    dKelvin > 66 
+                        ? 255 
+                        : 115.67994401066147 * Math.log( dKelvin - 10 ) + 0.8274096064007395 * ( dKelvin - 10 ) - 254.76935184120902
+                ].map( v => Math.max( 0, Math.min( 255, v ) ) );
+                return {
+                    r: rgb[0],
+                    g: rgb[1],
+                    b: rgb[2]
+                };
+            }
+
+            function characteristics_RGBVCTLight( service ) {
+
+                state.red = 0;
+                state.green = 0;
+                state.blue = 0;
+                state.bri = 100;
+                state.colorTemperature = 0;
+
+                let lastpubmsg = '';
+
+                function publishNow() {
+                    var bri = state.bri;
+                    if( !config.topics.setOn && !state.on ) {
+                        bri = 0;
+                    }
+
+                    var rgb = {'r': 255, 'g': 255, 'b': 255};
+                    if (state.colorTemperature == 0) {
+                        rgb = ScaledHSVtoRGB( state.hue, state.sat, 100 );
+                    }
+
+                    var msg = rgb.r + ',' + rgb.g + ',' + rgb.b + ',' + state.bri + ',' + state.colorTemperature;
+                    if( msg != lastpubmsg ) {
+                        mqttPublish( config.topics.setRGBVCT, 'RGBVCT', msg );
+                        lastpubmsg = msg;
+                    }
+                }
+
+                // hold off before publishing to ensure that all updated properties are collected first
+                function publish() {
+                    throttledCall( publishNow, 'rgbvct_publish', 20 );
+                }
+
+                if( config.topics.setOn ) {
+                    characteristic_On( service );
+                } else {
+                    addCharacteristic( service, 'on', Characteristic.On, false, function() {
+                        if( state.on && state.bri == 0 ) {
+                            state.bri = 100;
+                        }
+                        publish();
+                    } );
+                }
+                addCharacteristic( service, 'hue', Characteristic.Hue, 0, function() {
+                    // In RGB mode, set ct to 0
+                    state.colorTemperature = 0;
+                    publish();
+                } );
+                addCharacteristic( service, 'sat', Characteristic.Saturation, 0, function() {
+                    // In RGB mode, set ct to 0
+                    state.colorTemperature = 0;
+                    publish();
+                } );
+                addCharacteristic( service, 'bri', Characteristic.Brightness, 100, function() {
+                    if( state.bri > 0 && !state.on ) {
+                        state.on = true;
+                    }
+
+                    publish();
+                } );
+                addCharacteristic( service, 'colorTemperature', Characteristic.ColorTemperature, 0, function() {
+                    // When the CT gets changed in homekit, update the color to the corresponding value.
+                    let hsv = RGBtoScaledHSV( CTtoRGB( state.colorTemperature ) );
+                    state.hue = hsv.h;
+                    state.sat = hsv.s;
+                    setCharacteristic( service.getCharacteristic( Characteristic.Hue ), state.hue );
+                    setCharacteristic( service.getCharacteristic( Characteristic.Saturation ), state.sat );
+                    publish();
+                } );
+
+               if( config.topics.getRGBVCT ) {
+                    mqttSubscribe( config.topics.getRGBVCT, 'RGBVCT', function( topic, message ) {
+                        var comps = ( '' + message ).split( ',' );
+                        if( comps.length == 5 ) {
+
+                            var r  = parseInt( comps[ 0 ] );
+                            var g  = parseInt( comps[ 1 ] );
+                            var b  = parseInt( comps[ 2 ] );
+                            var v  = parseInt( comps[ 3 ] );
+                            var ct = parseInt( comps[ 4 ] );
+
+                            var hsv = RGBtoScaledHSV( r, g, b );
+                            var hue = Math.floor( hsv.h );
+                            var sat = Math.floor( hsv.s );
+                            var bri = v;
+
+                            if( !config.topics.setOn ) {
+                                var on = bri > 0 ? 1 : 0;
+
+                                if( on != state.on ) {
+                                    state.on = on;
+                                    setCharacteristic( service.getCharacteristic( Characteristic.On ), on );
+                                }
+                            }
+
+                            var ctMode = ( ct != 0 );
+                            if( ctMode ) {
+                                state.colorTemperature = ct;
+
+                                hsv = RGBtoScaledHSV( CTtoRGB( state.colorTemperature ) );
+                                hue = hsv.h;
+                                sat = hsv.s;
+
+                                setCharacteristic( service.getCharacteristic( Characteristic.ColorTemperature ), ct );
+                            }
+
+                            if( hue != state.hue ) {
+                                if( !ctMode ) { disableAdaptiveLighting( 'HSV hue' ); }
+
+                                state.hue = hue;
+                                setCharacteristic( service.getCharacteristic( Characteristic.Hue ), hue );
+                            }
+
+                            if( sat != state.sat ) {
+                                if( !ctMode ) { disableAdaptiveLighting( 'HSV saturation' ); }
+
+                                state.sat = sat;
+                                setCharacteristic( service.getCharacteristic( Characteristic.Saturation ), sat );
+                            }
+
+                            if( bri != state.bri ) {
+                                state.bri = bri;
+                                setCharacteristic( service.getCharacteristic( Characteristic.Brightness ), bri );
+                            }
+                        }
+                    } );
+                }
+
+                // if( supportAdaptiveLighting() ) {
+                //     addAdaptiveLightingController( service );
+                // }
             }
 
             function characteristics_WhiteLight( service ) {
@@ -2647,6 +2801,8 @@ function makeThing( log, accessoryConfig, api ) {
                 service = new Service.Lightbulb( name, subtype );
                 if( config.topics.setHSV ) {
                     characteristics_HSVLight( service );
+                } else if ( config.topics.setRGBVCT ) {
+                    characteristics_RGBVCTLight( service );
                 } else if( config.topics.setRGB || config.topics.setRGBW || config.topics.setRGBWW ) {
                     characteristics_RGBLight( service );
                 } else if( config.topics.setWhite ) {

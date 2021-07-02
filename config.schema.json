@@ -137,6 +137,12 @@
                         ]
                     },
                     {
+                        "title": "Light bulb - RGBVCT",
+                        "enum": [
+                            "lightbulb-RGBVCT"
+                        ]
+                    },
+                    {
                         "title": "Light Sensor",
                         "enum": [
                             "lightSensor"
@@ -401,6 +407,20 @@
                         "description": "In RGBWW mode, control topic published by mqttthing with comma-separated red, green, blue, warm_white and cold_white (all 0-255)",
                         "condition": {
                             "functionBody": "return ['lightbulb','lightbulb-RGBWW'].includes(model.type);"
+                        }
+                    },
+                    "getRGBVCT": {
+                        "type": "string",
+                        "description": "In RGBVCT mode, topic to notify mqttthing of comma-separated red, green, blue, brightness and color_temperature",
+                        "condition": {
+                            "functionBody": "return ['lightbulb','lightbulb-RGBVCT'].includes(model.type);"
+                        }
+                    },
+                    "setRGBVCT": {
+                        "type": "string",
+                        "description": "In RGBVCT mode, control topic published by mqttthing with comma-separated red, green, blue, brightness and color_temperature",
+                        "condition": {
+                            "functionBody": "return ['lightbulb','lightbulb-RGBVCT'].includes(model.type);"
                         }
                     },
                     "getWhite": {
@@ -834,14 +854,14 @@
                         "type": "string",
                         "description": "Topic used to notify mqttthing of on/off state",
                         "condition": {
-                            "functionBody": "return ['fan','lightbulb','lightbulb-OnOff','lightbulb-RGB','lightbulb-RGBW','lightbulb-RGBWW','lightbulb-HSV','lightbulb-Dimmable','lightbulb-Colour','lightbulb-Colour','lightbulb-ColTemp','outlet','switch','cameraControl'].includes(model.type);"
+                            "functionBody": "return ['fan','lightbulb','lightbulb-OnOff','lightbulb-RGB','lightbulb-RGBW','lightbulb-RGBWW','lightbulb-RGBVCT','lightbulb-HSV','lightbulb-Dimmable','lightbulb-Colour','lightbulb-Colour','lightbulb-ColTemp','outlet','switch','cameraControl'].includes(model.type);"
                         }
                     },
                     "setOn": {
                         "type": "string",
                         "description": "Topic published by mqttthing to control on/off state",
                         "condition": {
-                            "functionBody": "return ['fan','lightbulb','lightbulb-OnOff','lightbulb-RGB','lightbulb-RGBW','lightbulb-RGBWW','lightbulb-HSV','lightbulb-Dimmable','lightbulb-Colour','lightbulb-ColTemp','outlet','switch','cameraControl'].includes(model.type);"
+                            "functionBody": "return ['fan','lightbulb','lightbulb-OnOff','lightbulb-RGB','lightbulb-RGBW','lightbulb-RGBWW','lightbulb-RGBVCT','lightbulb-HSV','lightbulb-Dimmable','lightbulb-Colour','lightbulb-ColTemp','outlet','switch','cameraControl'].includes(model.type);"
                         }
                     },
                     "getHue": {
@@ -1289,28 +1309,28 @@
                 "title": "Use integer values (1 and 0) instead of 'true' and 'false'",
                 "description": "Use integer values 1 and 0 to represent on and off for Boolean values, instead of the default 'true' and 'false'. Alternatively specific values may be specified using 'onValue' and 'offValue'.",
                 "condition": {
-                    "functionBody": "return ['airPurifier','contactSensor','fan','lightbulb','lightbulb-OnOff','lightbulb-RGB','lightbulb-RGBW','lightbulb-RGBWW','lightbulb-HSV','lightbulb-Dimmable','lightbulb-Colour','lightbulb-ColTemp','lightSensor','motionSensor','occupancySensor','outlet','smokeSensor','switch','television','valve'].includes(model.type);"
+                    "functionBody": "return ['airPurifier','contactSensor','fan','lightbulb','lightbulb-OnOff','lightbulb-RGB','lightbulb-RGBW','lightbulb-RGBWW','lightbulb-RGBVCT','lightbulb-HSV','lightbulb-Dimmable','lightbulb-Colour','lightbulb-ColTemp','lightSensor','motionSensor','occupancySensor','outlet','smokeSensor','switch','television','valve'].includes(model.type);"
                 }
             },
             "onValue": {
                 "type": "string",
                 "description": "Value to use to represent an 'on' or 'triggered' state (optional). Takes precedence over 'integerValue'.",
                 "condition": {
-                    "functionBody": "return ['airPurifier','contactSensor','fan','lightbulb','lightbulb-OnOff','lightbulb-RGB','lightbulb-RGBW','lightbulb-RGBWW','lightbulb-HSV','lightbulb-Dimmable','lightbulb-Colour','lightbulb-ColTemp','lightSensor','motionSensor','occupancySensor','outlet','smokeSensor','switch','television','valve'].includes(model.type);"
+                    "functionBody": "return ['airPurifier','contactSensor','fan','lightbulb','lightbulb-OnOff','lightbulb-RGB','lightbulb-RGBW','lightbulb-RGBWW','lightbulb-RGBVCT','lightbulb-HSV','lightbulb-Dimmable','lightbulb-Colour','lightbulb-ColTemp','lightSensor','motionSensor','occupancySensor','outlet','smokeSensor','switch','television','valve'].includes(model.type);"
                 }
             },
             "offValue": {
                 "type": "string",
                 "description": "Value to use to represent an 'off' or 'not triggered' state (optional). Takes precedence over 'integerValue'.",
                 "condition": {
-                    "functionBody": "return ['airPurifier','contactSensor','fan','lightbulb','lightbulb-OnOff','lightbulb-RGB','lightbulb-RGBW','lightbulb-RGBWW','lightbulb-HSV','lightbulb-Dimmable','lightbulb-Colour','lightbulb-ColTemp','lightSensor','motionSensor','occupancySensor','outlet','smokeSensor','switch','television','valve'].includes(model.type);"
+                    "functionBody": "return ['airPurifier','contactSensor','fan','lightbulb','lightbulb-OnOff','lightbulb-RGB','lightbulb-RGBW','lightbulb-RGBWW','lightbulb-RGBVCT','lightbulb-HSV','lightbulb-Dimmable','lightbulb-Colour','lightbulb-ColTemp','lightSensor','motionSensor','occupancySensor','outlet','smokeSensor','switch','television','valve'].includes(model.type);"
                 }
             },
             "otherValueOff": {
                 "type": "boolean",
                 "description": "When 'onValue' and 'offValue' are configured, also treat any unrecognized received values as 'off'",
                 "condition": {
-                    "functionBody": "return ['airPurifier','contactSensor','fan','lightbulb','lightbulb-OnOff','lightbulb-RGB','lightbulb-RGBW','lightbulb-RGBWW','lightbulb-HSV','lightbulb-Dimmable','lightbulb-Colour','lightbulb-ColTemp','lightSensor','motionSensor','occupancySensor','outlet','smokeSensor','switch','television','valve'].includes(model.type);"
+                    "functionBody": "return ['airPurifier','contactSensor','fan','lightbulb','lightbulb-OnOff','lightbulb-RGB','lightbulb-RGBW','lightbulb-RGBWW','lightbulb-RGBVCT','lightbulb-HSV','lightbulb-Dimmable','lightbulb-Colour','lightbulb-ColTemp','lightSensor','motionSensor','occupancySensor','outlet','smokeSensor','switch','television','valve'].includes(model.type);"
                 }
             },
             "history": {
@@ -1406,7 +1426,7 @@
                 "title": "Turn Off After",
                 "description": "Milliseconds after which to turn off automatically (optional)",
                 "condition": {
-                    "functionBody": "return ['fan','lightbulb','lightbulb-OnOff','lightbulb-RGB','lightbulb-RGBW','lightbulb-RGBWW','lightbulb-HSV','lightbulb-Dimmable','lightbulb-Colour','lightbulb-ColTemp','motionSensor','outlet','switch','valve'].includes(model.type);"
+                    "functionBody": "return ['fan','lightbulb','lightbulb-OnOff','lightbulb-RGB','lightbulb-RGBW','lightbulb-RGBWW','lightbulb-RGBVCT','lightbulb-HSV','lightbulb-Dimmable','lightbulb-Colour','lightbulb-ColTemp','motionSensor','outlet','switch','valve'].includes(model.type);"
                 }
             },
             "doorCurrentValues": {
@@ -1783,6 +1803,8 @@
                 "topics.getRGBW",
                 "topics.setRGBWW",
                 "topics.getRGBWW",
+                "topics.setRGBVCT",
+                "topics.getRGBVCT",
                 "topics.setWhite",
                 "topics.getWhite",
                 "topics.getStatusActive",
