@@ -12,6 +12,7 @@ The following Homekit accessory types are supported by MQTT-Thing:
    * [Air Quality Sensor](#air-quality-sensor)
    * [Carbon Dioxide Sensor](#carbon-dioxide-sensor)
    * [Contact Sensor](#contact-sensor)
+   * [Door](#door)
    * [Doorbell](#doorbell)
    * [Fan](#fan)
    * [Garage door opener](#garage-door-opener)
@@ -126,7 +127,9 @@ The filter life level is used to indicate remaining filter life level in percent
 
 Air quality state can be `UNKNOWN`, `EXCELLENT`, `GOOD`, `FAIR`, `INFERIOR` or `POOR`. To use different values, specify them in **airQualityValues** in that order.
 
-For Air Quality History (in the Eve-App) you have to use `getAirQualityPPM`.
+For Air Quality History (in the Eve-App) you have to use `getVOCDensity` (Eve Room 2) or `getAirQualityPPM` (Eve Room 1).
+
+History records need to be cleared when Migrating from Room 1 to Room 2 because they are not compatible.
 
 ```javascript
 {
@@ -157,7 +160,8 @@ For Air Quality History (in the Eve-App) you have to use `getAirQualityPPM`.
         "getCurrentRelativeHumidity": "<topic used to provide 'current relative humidity' (optional)>"
     },
     "airQualityValues": [ "unknown-value", "excellent-value", "good-value", "fair-value", "inferior-value", "poor-value" ],
-    "history": "<true to enable History service for Eve App (optional)>"
+    "history": "<true to enable History service for Eve App (optional)>",
+    "room2": "<true to enable Room 2 support for Eve App (optional)>"
 }
 ```
 
@@ -217,6 +221,33 @@ If `history` is enabled, this plugin will count the number of openings and offer
     "history": "<true to enable History service for Eve App (optional)>"
 }
 ```
+
+
+## Door
+
+Door position state can be **DECREASING**, **INCREASING** or **STOPPED**. By default, these use values of `DECREASING`, `INCREASING`, and `STOPPED` respectively; these defaults can be changed using the **positionStateValues** setting.
+
+```javascript
+{
+    "accessory": "mqttthing",
+    "type": "door",
+    "name": "<name of device>",
+    "topics":
+    {
+        "getCurrentPosition":           "<topic used to report current position (integer 0-100)>",
+        "setTargetPosition":            "<topic used to control target position (integer 0-100)>",
+        "getTargetPosition":            "<topic used to report target position (optional)>",
+        "getPositionState":             "<topic used to report position state>",
+        "setHoldPosition":              "<topic used to control hold position (Boolean)>",
+        "getObstructionDetected":       "<topic used to report whether an obstruction is detected (Boolean)>"
+    },
+    "positionStateValues": [ "decreasing-value", "increasing-value", "stopped-value" ],
+    "minPosition": 0,
+    "maxPosition": 100
+}
+```
+
+The optional `minPosition` and `maxPosition` allow the minimum and maximum position values to be changed from their defaults of 0 and 100 respectively.
 
 
 ## Doorbell
@@ -760,7 +791,9 @@ Set `confirmationPeriodms` to enable publishing confirmation for `setOn`/`getOn`
     "onValue": "<value representing on (optional)>",
     "offValue": "<value representing off (optional)>",
     "turnOffAfterms": "<milliseconds after which to turn off automatically (optional)>",
-    "history": "<true to enable History service for Eve App (optional)>"
+    "history": "<true to enable History service for Eve App (optional)>",
+    "minVolts": "<minumum voltage (optional)>",
+    "maxVolts": "<maximum voltage (optional)>"
 }
 ```
 
@@ -774,6 +807,8 @@ Security System target state can be **STAY_ARM**, **AWAY_ARM**, **NIGHT_ARM** or
 Homebridge publishes a value to the **setTargetState** topic to indicate the state that the HomeKit user wishes the alarm to be in. The alarm system must echo this state back to the **getCurrentState** topic to confirm that it has set the alarm state appropriately. The alarm system may also publish the ALARM_TRIGGERED value (`T` by default) to the **getCurrentState** topic in order to indicate that the alarm has been triggered. While homekit is waiting for the state change to be confirmed, it will display 'Arming...' or 'Disarming...'.
 
 Additionally, the alarm system may change its own target state by publishing to **getTargetState**. As with a homekit-controlled state change, this must be followed by a publish to **getCurrentState** to confirm that the change is complete. It is possible to set **getTargetState** and **getCurrentState** to the same MQTT topic, allowing the alarm system to change the target state and confirm that it has been achieved with a single MQTT message.
+
+If your system need an aditionnal sensor to detect the current states, you could set the **getAltSensorState** to the required sensor, and make your own rules in a codec.
 
 Configure `restrictTargetState` to an array of integers to restrict the target states made available by Homekit, where 0 represents STAY_ARM, 1 AWAY_ARM, 2 NIGHT_ARM and 3 DISARM, for example:
 
@@ -808,6 +843,11 @@ Configure `restrictTargetState` to an array of integers to restrict the target s
 `getTargetState` - Topic that may be published to notify HomeKit that the target alarm state has been changed externally. Values are `targetStateValues`. May use same topic as `getCurrentState` as above. Omit if all control is through HomeKit.
 
 `getCurrentState` - Topic published to notify HomeKit that an alarm state has been achieved. HomeKit will expect current state to end up matching target state. Values are `currentStateValues`.
+
+### Addition topics
+
+`getAltSensorState` - Topic published to help discovery alarm states. Values are the alternate sensor values see the ShellyAMAX codec to know how to use it.
+
 
 ### Values
 
@@ -1192,9 +1232,13 @@ Window position state can be **DECREASING**, **INCREASING** or **STOPPED**. By d
         "setHoldPosition":              "<topic used to control hold position (Boolean)>",
         "getObstructionDetected":       "<topic used to report whether an obstruction is detected (Boolean)>"
     },
-    "positionStateValues": [ "decreasing-value", "increasing-value", "stopped-value" ]
+    "positionStateValues": [ "decreasing-value", "increasing-value", "stopped-value" ],
+    "minPosition": 0,
+    "maxPosition": 100
 }
 ```
+
+The optional `minPosition` and `maxPosition` allow the minimum and maximum position values to be changed from their defaults of 0 and 100 respectively.
 
 
 ## Window Covering
@@ -1221,6 +1265,10 @@ Window covering position state can be **DECREASING**, **INCREASING** or **STOPPE
         "getCurrentVerticalTiltAngle":   "<topic used to report current vertical tilt angle>",
         "getObstructionDetected":        "<topic used to report whether an obstruction is detected (Boolean)>"
     },
-    "positionStateValues": [ "decreasing-value", "increasing-value", "stopped-value" ]
+    "positionStateValues": [ "decreasing-value", "increasing-value", "stopped-value" ],
+    "minPosition": 0,
+    "maxPosition": 100
 }
 ```
+
+The optional `minPosition` and `maxPosition` allow the minimum and maximum position values to be changed from their defaults of 0 and 100 respectively.

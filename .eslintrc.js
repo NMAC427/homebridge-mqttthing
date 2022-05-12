@@ -1,3 +1,5 @@
+'use strict'; // eslint-disable-line
+
 module.exports = {
     "env": {
         "es6": true,
@@ -5,7 +7,7 @@ module.exports = {
     },
     "extends": "eslint:recommended",
     "parserOptions": {
-        "ecmaVersion": 9 /* otherwise object spread causes 'Parsing error: Unexpected token...' */
+        "ecmaVersion": 2020
     },
     "rules": {
         "accessor-pairs": "error",
@@ -73,6 +75,7 @@ module.exports = {
         "key-spacing": "error",
         "keyword-spacing": "off",
         "line-comment-position": "off",
+        "linebreak-style": "off",
         "lines-around-comment": "off",
         "lines-around-directive": "error",
         "lines-between-class-members": "error",
@@ -148,7 +151,7 @@ module.exports = {
                 "allowForLoopAfterthoughts": true
             }
         ],*/
-        "no-process-env": "error",
+        "no-process-env": "off",
         "no-process-exit": "error",
         "no-proto": "error",
         "no-prototype-builtins": "off",
@@ -217,7 +220,7 @@ module.exports = {
         "require-await": "error",
         "require-jsdoc": "off",
         "rest-spread-spacing": "error",
-        "semi": "off",
+        "semi": "error",
         "semi-spacing": [
             "error",
             {

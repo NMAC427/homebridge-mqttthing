@@ -5,7 +5,8 @@
 
 const mqtt = require( "mqtt" );
 const path = require( "path" );
-const fs = require("fs");
+const fs = require( "fs" );
+const jsonpath = require( "jsonpath" );
 
 var mqttlib = new function() {
 
@@ -24,16 +25,85 @@ var mqttlib = new function() {
         return codecPath;
     }
 
+    function optimizedPublish( topic, message, ctx ) {
+        const { config, log, mqttClient } = ctx;
+        const messageString = message.toString();
+        if( config.optimizePublishing && ctx.lastPubValues ) {
+            if( ctx.lastPubValues[ topic ] == messageString ) {
+                // optimized - don't publish
+                return;
+            }
+            // store what we're about to publish
+            ctx.lastPubValues[ topic ] = messageString;
+        }
+        if( config.logMqtt ) {
+            log( 'Publishing MQTT: ' + topic + ' = ' + messageString );
+        }
+        mqttClient.publish( topic, messageString, config.mqttPubOptions );
+    }
+
     //! Initialise MQTT. Requires context ( { log, config } ).
-    //! Context populated with mqttClient and mqttDispatch.
+    //! Context populated with mqttClient and mqttDispatch, and if publishing optimization is enabled lastPubValues.
     this.init = function( ctx ) {
         // MQTT message dispatch
         let mqttDispatch = ctx.mqttDispatch = {}; // map of topic to [ function( topic, message ) ] to handle
         let propDispatch = ctx.propDispatch = {}; // map of property to [ rawhandler( topic, message ) ]
 
         let { config, log } = ctx;
+
+        // create cache of last-published values for publishing optimization
+        if( config.optimizePublishing ) {
+            ctx.lastPubValues = {};
+        }
+
         let logmqtt = config.logMqtt;
         var clientId = 'mqttthing_' + config.name.replace(/[^\x20-\x7F]/g, "") + '_' + Math.random().toString(16).substr(2, 8);
+
+        // Load any codec
+        if( config.codec ) {
+            let codecPath = makeCodecPath( config.codec, ctx.homebridgePath );
+            if( fs.existsSync( codecPath ) ) {
+                // load codec
+                log( 'Loading codec from ' + codecPath );
+                let codecMod = require( codecPath );
+                if( typeof codecMod.init === "function" ) {
+
+                    // direct publishing
+                    let directPub = function( topic, message ) {
+                        optimizedPublish( topic, message, ctx );
+                    };
+
+                    // notification by property
+                    let notifyByProp = function( property, message ) {
+                        let handlers = propDispatch[ property ];
+                        if( handlers ) {
+                            for( let i = 0; i < handlers.length; i++ ) {
+                                handlers[ i ]( '_prop-' + property, message );
+                            }
+                        }
+                    };
+
+                    // initialise codec
+                    let codec = ctx.codec = codecMod.init( { log, config, publish: directPub, notify: notifyByProp } );
+                    if( codec ) {
+                        // encode/decode must be functions
+                        if( typeof codec.encode !== "function" ) {
+                            log.warn( 'No codec encode() function' );
+                            codec.encode = null;
+                        }
+                        if( typeof codec.decode !== "function" ) {
+                            log.warn( 'No codec decode() function' );
+                            codec.decode = null;
+                        }
+                    }
+                } else {
+                    // no initialisation function
+                    log.error( 'ERROR: No codec initialisation function returned from ' + codecPath );
+                }
+            } else {
+                log.error( 'ERROR: Codec file [' + codecPath + '] does not exist' );
+            }
+        }
 
         // start with any configured options object
         var options = config.mqttOptions || {};
@@ -53,8 +123,8 @@ var mqttlib = new function() {
                 qos: 0,
                 retain: false
             },
-            username: config.username,
-            password: config.password,
+            username: config.username || process.env.MQTTTHING_USERNAME,
+            password: config.password || process.env.MQTTTHING_PASSWORD,
             rejectUnauthorized: false
         };
 
@@ -78,13 +148,13 @@ var mqttlib = new function() {
 
         // insecure
         if( options.insecure ) {
-            options.checkServerIdentity = function( /* servername, cert */ ) { 
-                return undefined; /* servername and certificate are verified */ 
+            options.checkServerIdentity = function( /* servername, cert */ ) {
+                return undefined; /* servername and certificate are verified */
             };
         }
 
         // add protocol to url string, if not yet available
-        let brokerUrl = config.url;
+        let brokerUrl = config.url || process.env.MQTTTHING_URL;
         if( brokerUrl && ! brokerUrl.includes( '://' ) ) {
             brokerUrl = 'mqtt://' + brokerUrl;
         }
@@ -119,55 +189,6 @@ var mqttlib = new function() {
                 log('Warning: No MQTT dispatch handler for topic [' + topic + ']');
             }
         });
-
-        // Load any codec
-        if( config.codec ) {
-            let codecPath = makeCodecPath( config.codec, ctx.homebridgePath );
-            if( fs.existsSync( codecPath ) ) {
-                // load codec
-                log( 'Loading codec from ' + codecPath );
-                let codecMod = require( codecPath );
-                if( typeof codecMod.init === "function" ) {
-
-                    // direct publishing
-                    let directPub = function( topic, message ) {
-                        if( config.logMqtt ) {
-                            log( 'Publishing MQTT: ' + topic + ' = ' + message );
-                        }
-                        mqttClient.publish( topic, message.toString(), config.mqttPubOptions );
-                    };
-
-                    // notification by property
-                    let notifyByProp = function( property, message ) {
-                        let handlers = propDispatch[ property ];
-                        if( handlers ) {
-                            for( let i = 0; i < handlers.length; i++ ) {
-                                handlers[ i ]( '_prop-' + property, message );
-                            }
-                        }
-                    };
-                    
-                    // initialise codec
-                    let codec = ctx.codec = codecMod.init( { log, config, publish: directPub, notify: notifyByProp } );
-                    if( codec ) {
-                        // encode/decode must be functions
-                        if( typeof codec.encode !== "function" ) {
-                            log.warn( 'No codec encode() function' );
-                            codec.encode = null;
-                        }
-                        if( typeof codec.decode !== "function" ) {
-                            log.warn( 'No codec decode() function' );
-                            codec.decode = null;
-                        }
-                    }
-                } else {
-                    // no initialisation function
-                    log.error( 'ERROR: No codec initialisation function returned from ' + codecPath );
-                }
-            } else {
-                log.error( 'ERROR: Codec file [' + codecPath + '] does not exist' );
-            }
-        }
 
         ctx.mqttClient = mqttClient;
         return mqttClient;
@@ -216,12 +237,13 @@ var mqttlib = new function() {
                 debounceTimeout = setTimeout( function() {
                     origHandler( intopic, message );
                 }, config.debounceRecvms );
-            }
+            };
         }
 
+        let extendedTopic = null;
         // send through any apply function
         if (typeof topic != 'string') {
-            let extendedTopic = topic;
+            extendedTopic = topic;
             topic = extendedTopic.topic;
             if (extendedTopic.hasOwnProperty('apply')) {
                 let previous = handler;
@@ -230,6 +252,9 @@ var mqttlib = new function() {
                     let decoded;
                     try {
                         decoded = applyFn( message, getApplyState( ctx, property ) );
+                        if( config.logMqtt ) {
+                            log( 'apply() function decoded message to [' + decoded + ']' );
+                        }
                     } catch( ex ) {
                         log( 'Decode function apply( message) { ' + extendedTopic.apply + ' } failed for topic ' + topic + ' with message ' + message + ' - ' + ex );
                     }
@@ -248,7 +273,10 @@ var mqttlib = new function() {
                 return realHandler( topic, message );
             };
             handler = function( intopic, message ) {
-                let decoded = codecDecode( message, { topic, property }, output );
+                let decoded = codecDecode( message, { topic, property, extendedTopic }, output );
+                if( config.logMqtt ) {
+                    log( 'codec decoded message to [' + decoded + ']' );
+                }
                 if( decoded !== undefined ) {
                     return output( decoded );
                 }
@@ -269,6 +297,24 @@ var mqttlib = new function() {
             }
         }
 
+        // JSONPath
+        const jsonpathIndex = topic?.indexOf( '$' ) ?? -1;
+        if( jsonpathIndex > 0 ) {
+            let jsonpathQuery = topic.substring( jsonpathIndex );
+            topic = topic.substring( 0, jsonpathIndex );
+
+            const lastHandler = handler;
+            handler = function( intopic, message ) {
+                const json = JSON.parse( message );
+                const values = jsonpath.query( json, jsonpathQuery );
+                const output = values.shift();
+                if( config.logMqtt ) {
+                    log( `jsonpath ${jsonpathQuery} decoded message to [${output}]` );
+                }
+                return lastHandler( topic, output );
+            };
+        }
+
         // register MQTT dispatch and subscribe
         if( mqttDispatch.hasOwnProperty( topic ) ) {
             // new handler for existing topic
@@ -282,7 +328,7 @@ var mqttlib = new function() {
 
     // Publish
     this.publish = function( ctx, topic, property, message ) {
-        let { config, log, mqttClient, codec } = ctx;
+        let { log, mqttClient, codec } = ctx;
         if( ! mqttClient ) {
             log( 'ERROR: Call mqttlib.init() before mqttlib.publish()' );
             return;
@@ -292,10 +338,11 @@ var mqttlib = new function() {
             return; // don't publish if message is null or topic is undefined
         }
 
+        let extendedTopic = null;
         // first of all, pass message through any user-supplied apply() function
         if (typeof topic != 'string') {
             // encode data with user-supplied apply() function
-            var extendedTopic = topic;
+            extendedTopic = topic;
             topic = extendedTopic.topic;
             if (extendedTopic.hasOwnProperty('apply')) {
                 var applyFn = Function( "message", "state", extendedTopic['apply'] ); //eslint-disable-line
@@ -312,17 +359,14 @@ var mqttlib = new function() {
         }
 
         function publishImpl( finalMessage ) {
-            if( config.logMqtt ) {
-                log( 'Publishing MQTT: ' + topic + ' = ' + finalMessage );
-            }
-            mqttClient.publish( topic, finalMessage.toString(), config.mqttPubOptions );
+            optimizedPublish( topic, finalMessage, ctx );
         }
 
         // publish directly or through codec
         let codecEncode = getCodecFunction( codec, property, 'encode' );
         if( codecEncode ) {
             // send through codec's encode function
-            let encoded = codecEncode( message, { topic, property }, publishImpl );
+            let encoded = codecEncode( message, { topic, property, extendedTopic }, publishImpl );
             if( encoded !== undefined ) {
                 publishImpl( encoded );
             }
@@ -342,7 +386,7 @@ var mqttlib = new function() {
             // no confirmation - return generic publishing function
             return function( message ) {
                 mqttlib.publish( ctx, setTopic, property, message );
-            }
+            };
         }
 
         var timer = null;

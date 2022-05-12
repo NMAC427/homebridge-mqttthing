@@ -65,7 +65,7 @@ function makeThing( log, accessoryConfig, api ) {
             throttledCallTimers[ identifier ] = null;
             func();
         }, timeout );
-    }
+    };
 
     // Controllers
     let controllers = [];
@@ -975,9 +975,9 @@ function makeThing( log, accessoryConfig, api ) {
                     blue = Math.min( blue + white, 255 );
 
                     var hsv = RGBtoScaledHSV( red, green, blue );
-                    var hue = hsv.h;
-                    var sat = hsv.s;
-                    var bri = hsv.v;
+                    var hue = Math.floor( hsv.h );
+                    var sat = Math.floor( hsv.s );
+                    var bri = Math.floor( hsv.v );
 
                     if( !config.topics.setOn ) {
                         var on = bri > 0 ? 1 : 0;
@@ -1322,12 +1322,38 @@ function makeThing( log, accessoryConfig, api ) {
                 }
             }
 
-            function floatCharacteristic( service, property, characteristic, setTopic, getTopic, initialValue ) {
-                // default state
-                state[ property ] = initialValue;
+            function floatCharacteristic( service, property, characteristic, setTopic, getTopic, options ) {
+
+                if( options === undefined ) {
+                    options = {};
+                } else if( typeof options === 'number' ) {
+                    options = { initialValue: options };
+                }
+                let initialValue = options.initialValue || 0;
 
                 // set up characteristic
                 var charac = service.getCharacteristic( characteristic );
+
+                if( options.minValue !== undefined ) {
+                    charac.props.minValue = options.minValue;
+                }
+
+                if( options.maxValue !== undefined ) {
+                    charac.props.maxValue = options.maxValue;
+                }
+
+                if( initialValue < charac.props.minValue ) {
+                    initialValue = charac.props.minValue;
+                }
+
+                if( initialValue > charac.props.maxValue ) {
+                    initialValue = charac.props.maxValue;
+                }
+
+                // default state
+                state[ property ] = initialValue;
+
+                // get/set
                 charac.on( 'get', function( callback ) {
                     handleGetStateCallback( callback, state[ property ] );
                 } );
@@ -1670,6 +1696,33 @@ function makeThing( log, accessoryConfig, api ) {
             function characteristic_StatusTampered( service ) {
                 booleanCharacteristic( service, 'statusTampered', Characteristic.StatusTampered, null, config.topics.getStatusTampered );
             }
+            
+            // Characteristic.AltSensorState to help detecting triggered state with multiple sensors
+            function characteristic_AltSensorState( /*service*/ ) {
+                // additional MQTT subscription instead of set-callback due to correct averaging:
+                mqttSubscribe( config.topics.getAltSensorState, 'AltSensorState', function( topic, message ) {
+                     // determine whether this is an on or off value
+                    let newState = false; // assume off
+                    if( isRecvValueOn( message ) ) {
+                        newState = true; // received on value so on
+                    } else if( !isRecvValueOff( message ) ) {
+                        // received value NOT acceptable as 'off' so ignore message
+                        return;
+                    }
+
+                    // not a real property/state ??? - no property/propChangedHandler so disabling code below...
+                    //  TODO: check with Ferme de Pommerieux
+                    log.warn( `AltSensorState now ${newState?'on':'off'} - TODO: update state and set characteristic??` );
+
+                    /*
+                    // if changed, set
+                    if( state[ property ] != newState ) {
+                        state[ property ] = newState;
+                        propChangedHandler();
+                    }
+                    */
+                } );
+            }
 
             // Characteristic.StatusLowBattery
             function characteristic_StatusLowBattery( service ) {
@@ -1784,7 +1837,7 @@ function makeThing( log, accessoryConfig, api ) {
 
             // Characteristic.characteristic_AirPressure (Eve-only)
             function characteristic_AirPressure( service ) {
-                floatCharacteristic( service, 'airPressure', Eve.Characteristics.AirPressure, null, config.topics.getAirPressure, 0 );
+                floatCharacteristic( service, 'airPressure', Eve.Characteristics.AirPressure, null, config.topics.getAirPressure, 700 );
                 // set characteristic Elevation for air pressure calibration (not used yet with MQTT)
                 service.updateCharacteristic( Eve.Characteristics.Elevation, 100 );
             }
@@ -1845,6 +1898,18 @@ function makeThing( log, accessoryConfig, api ) {
                 floatCharacteristic( service, 'windSpeed', Eve.Characteristics.WindSpeed, null, config.topics.getWindSpeed, 0 );
             }
 
+            // Characteristic.maxWind (Eve-only)
+            function characteristic_MaximumWindSpeed( service ) {
+                service.addOptionalCharacteristic( Eve.Characteristics.MaximumWindSpeed ); // to avoid warnings
+                floatCharacteristic( service, 'maxWind', Eve.Characteristics.MaximumWindSpeed, null, config.topics.getmaxWind, 0 );
+            }
+            
+            // Characteristic.Dewpoint(Eve-only)
+            function characteristic_DewPoint( service ) {
+                service.addOptionalCharacteristic( Eve.Characteristics.DewPoint ); // to avoid warnings
+                floatCharacteristic( service, 'DewPoint', Eve.Characteristics.DewPoint, null, config.topics.getDewPoint, 0 );
+            }
+            
             // Characteristic.ContactSensorState
             function characteristic_ContactSensorState( service ) {
                 booleanCharacteristic( service, 'contactSensorState', Characteristic.ContactSensorState,
@@ -1873,7 +1938,7 @@ function makeThing( log, accessoryConfig, api ) {
                 // load TimesOpened counter from counterFile
                 fs.readFile( counterFile, 'utf8', function( err, data ) {
                     let cnt = 0;
-                    let res = Math.floor( Date.now() / 1000 ) - 978307200  // seconds since 01.01.2001
+                    let res = Math.floor( Date.now() / 1000 ) - 978307200;  // seconds since 01.01.2001
                     if( err ) {
                         log.debug( 'No data loaded for TimesOpened' );
                     } else {
@@ -2149,14 +2214,28 @@ function makeThing( log, accessoryConfig, api ) {
                 }, undefined, config.resetStateAfterms );
             }
 
+            // Characteristic.WaterLevel
+            function characteristic_WaterLevel( service ) {
+              let options = { minValue: 0, maxValue: 100 };
+              integerCharacteristic( service, 'waterLevel', Characteristic.WaterLevel, config.topics.setWaterLevel, config.topics.getWaterLevel, options);
+            }
+
             // Characteristic.TargetPosition
             function characteristic_TargetPosition( service ) {
-                integerCharacteristic( service, 'targetPosition', Characteristic.TargetPosition, config.topics.setTargetPosition, config.topics.getTargetPosition );
+                integerCharacteristic( service, 'targetPosition', Characteristic.TargetPosition, config.topics.setTargetPosition, config.topics.getTargetPosition, {
+                    initialValue: config.minPosition || 0,
+                    minValue: config.minPosition,
+                    maxValue: config.maxPosition
+                } );
             }
 
             // Characteristic.CurrentPosition
             function characteristic_CurrentPosition( service ) {
-                integerCharacteristic( service, 'currentPosition', Characteristic.CurrentPosition, null, config.topics.getCurrentPosition );
+                integerCharacteristic( service, 'currentPosition', Characteristic.CurrentPosition, null, config.topics.getCurrentPosition, {
+                    initialValue: config.minPosition || 0,
+                    minValue: config.minPosition,
+                    maxValue: config.maxPosition
+                } );
             }
 
             // Characteristic.PositionState
@@ -2243,6 +2322,16 @@ function makeThing( log, accessoryConfig, api ) {
                 floatCharacteristic( service, 'airQualityPPM', Eve.Characteristics.AirParticulateDensity, null, config.topics.getAirQualityPPM );
             }
 
+            // Eve.Characteristics.EveTemperatureDisplayUnits (Eve Room 2 only)
+            // Defined with airQualitySensor support for room2 by D4rk (used if config.history && config.room2) but gives warning so removing for now and calling original characteristic_TemperatureDisplayUnits instead...
+            // > This plugin generated a warning from the characteristic 'Temperature Display Units': characteristic value expected valid finite number and received "NaN" (number). See https://git.io/JtMGR for more info.
+            // TODO: confirm with D4rk
+            /*
+            function characteristic_EveTemperatureDisplayUnits( service ) {
+                stringCharacteristic( service, 'eveTemperatureDisplayUnits', Characteristic.TemperatureDisplayUnits, null, null, 'Celsius' )
+            }
+            */
+
             // History for Air Quality (Eve-only)
             function history_AirQualityPPM( historySvc ) {
                 if( config.topics.getAirQualityPPM ) {
@@ -2251,6 +2340,20 @@ function makeThing( log, accessoryConfig, api ) {
                         var logEntry = {
                             time: Math.floor( Date.now() / 1000 ),  // seconds (UTC)
                             ppm: parseFloat( message )  // fakegato-history logProperty 'ppm' for air quality sensor
+                        };
+                        historySvc.addEntry( logEntry );
+                    } );
+                }
+            }
+
+            // History for Air Quality (Eve Room 2 only)
+            function history_VOCDensity( historySvc ) {
+                if( config.topics.getVOCDensity ) {
+                    // additional MQTT subscription instead of set-callback due to correct averaging:
+                    mqttSubscribe( config.topics.getVOCDensity, 'VOCDensity', function( topic, message ) {
+                        var logEntry = {
+                            time: Math.floor( Date.now() / 1000 ),  // seconds (UTC)
+                            voc: parseFloat( message )  // fakegato-history logProperty 'voc' for air quality sensor
                         };
                         historySvc.addEntry( logEntry );
                     } );
@@ -2392,7 +2495,9 @@ function makeThing( log, accessoryConfig, api ) {
             // Eve.Characteristics.Voltage [Volts] (Eve-only)
             function characteristic_Voltage( service ) {
                 service.addOptionalCharacteristic( Eve.Characteristics.Voltage ); // to avoid warnings
-                floatCharacteristic( service, 'voltage', Eve.Characteristics.Voltage, null, config.topics.getVolts, 100 );
+                floatCharacteristic( service, 'voltage', Eve.Characteristics.Voltage, null, config.topics.getVolts, {
+                    minValue: config.minVolts, maxValue: config.maxVolts
+                } );
             }
 
             // Eve.Characteristics.ElectricCurrent [Amperes] (Eve-only)
@@ -2428,7 +2533,7 @@ function makeThing( log, accessoryConfig, api ) {
                     // load TotalConsumption counter from counterFile
                     fs.readFile( counterFile, 'utf8', function( err, data ) {
                         let cnt = 0;
-                        let res = Math.floor( Date.now() / 1000 ) - 978307200  // seconds since 01.01.2001
+                        let res = Math.floor( Date.now() / 1000 ) - 978307200;  // seconds since 01.01.2001
                         if( err ) {
                             log.debug( 'No data loaded for totalConsumption' );
                         } else {
@@ -2583,13 +2688,21 @@ function makeThing( log, accessoryConfig, api ) {
                         topic_getDuration = subConfig.topics.getDuration;
                     }
                 }
+
+                let initialValue = 1200;
+                if( config.minDuration !== undefined && initialValue < config.minDuration ) {
+                    initialValue = config.minDuration;
+                } else if( config.maxDuration !== undefined && initialValue > config.maxDuration ) {
+                    initialValue = config.maxDuration;
+                }
+
                 if( !topic_setDuration ) {
                     /* no topic specified, but propery is still created internally */
-                    addCharacteristic( service, property_setDuration, Characteristic.SetDuration, 30, function() {
+                    addCharacteristic( service, property_setDuration, Characteristic.SetDuration, initialValue, function() {
                         log.debug( 'set "' + property_setDuration + '" to ' + state[ property_setDuration ] + 's.' );
                     } );
                 } else {
-                    integerCharacteristic( service, property_setDuration, Characteristic.SetDuration, topic_setDuration, topic_getDuration, { initialValue: 30 } );
+                    integerCharacteristic( service, property_setDuration, Characteristic.SetDuration, topic_setDuration, topic_getDuration, { initialValue } );
                 }
                 // minimum/maximum duration
                 if( config.minDuration !== undefined || config.maxDuration !== undefined ) {
@@ -2974,6 +3087,14 @@ function makeThing( log, accessoryConfig, api ) {
                     characteristic_WindSpeed( weatherSvc );
                     addWeatherSvc = true;
                 }
+                 if( config.topics.getmaxWind ) {
+                    characteristic_MaximumWindSpeed( weatherSvc );
+                    addWeatherSvc = true;
+                }
+                if( config.topics.getDewPoint ) {
+                    characteristic_DewPoint( weatherSvc );
+                    addWeatherSvc = true;
+                }
                 if( addWeatherSvc ) {
                     services.push( weatherSvc );
                 }
@@ -3018,7 +3139,7 @@ function makeThing( log, accessoryConfig, api ) {
                 if( Array.isArray( config.topics.getSwitch ) ) {
                     service = new Service.ServiceLabel( name );
                     characteristic_ServiceLabelNamespace( service );
-                    services = [ service ]
+                    services = [ service ];
                     var i = 0;
                     for( i = 0; i < config.topics.getSwitch.length; i++ ) {
                         let buttonTopic = config.topics.getSwitch[ i ];
@@ -3047,7 +3168,7 @@ function makeThing( log, accessoryConfig, api ) {
                         let buttonSvc = new Service.StatelessProgrammableSwitch( name + "_" + i, i + 1 );
                         characteristic_ProgrammableSwitchEvent( buttonSvc, 'switch' + i, buttonTopic, switchValues, restrictSwitchValues );
                         characteristic_ServiceLabelIndex( buttonSvc, i + 1 );
-                        services.push( buttonSvc )
+                        services.push( buttonSvc );
                     }
                 } else {
                     service = new Service.StatelessProgrammableSwitch( name, subtype );
@@ -3062,6 +3183,9 @@ function makeThing( log, accessoryConfig, api ) {
                 }
                 if( config.topics.getStatusTampered ) {
                     characteristic_StatusTampered( service );
+                }
+                if( config.topics.getAltSensorState ) {
+                    characteristic_AltSensorState( service );
                 }
                 // todo: SecuritySystemAlarmType
             } else if( configType == "smokeSensor" ) {
@@ -3105,6 +3229,9 @@ function makeThing( log, accessoryConfig, api ) {
             } else if( configType == "leakSensor" ) {
                 service = new Service.LeakSensor( name, subtype );
                 characteristic_LeakDetected( service );
+                if( config.topics.setWaterLevel || config.topics.getWaterLevel ) {
+                    characteristic_WaterLevel( service );
+                }
                 addSensorOptionalCharacteristics( service );
             } else if( configType == "microphone" ) {
                 service = new Service.Microphone( name, subtype );
@@ -3152,6 +3279,17 @@ function makeThing( log, accessoryConfig, api ) {
                 if( config.topics.getObstructionDetected ) {
                     characteristic_ObstructionDetected( service );
                 }
+            } else if( configType == "door" ) {
+                service = new Service.Door( name, subtype );
+                characteristic_CurrentPosition( service );
+                characteristic_TargetPosition( service );
+                characteristic_PositionState( service );
+                if( config.topics.setHoldPosition ) {
+                    characteristic_HoldPosition( service );
+                }
+                if( config.topics.getObstructionDetected ) {
+                    characteristic_ObstructionDetected( service );
+                }
             } else if( configType == "airQualitySensor" ) {
                 service = new Service.AirQualitySensor( svcNames.airQuality || name, subtype );
                 characteristic_AirQuality( service );
@@ -3184,6 +3322,7 @@ function makeThing( log, accessoryConfig, api ) {
                 if( config.topics.getCurrentTemperature ) {
                     let tempSvc = new Service.TemperatureSensor( svcNames.temperature || name + "-Temperature", subtype );
                     characteristic_CurrentTemperature( tempSvc );
+                    characteristic_TemperatureDisplayUnits( tempSvc );
                     addSensorOptionalCharacteristics( tempSvc );
                     services.push( tempSvc );
                 }
@@ -3193,7 +3332,14 @@ function makeThing( log, accessoryConfig, api ) {
                     addSensorOptionalCharacteristics( humSvc );
                     services.push( humSvc );
                 }
-                if( config.history ) {
+                if( config.history && config.room2 ) {
+                    let historyOptions = new HistoryOptions();
+                    let historySvc = new HistoryService( 'room2', { displayName: name, log: log }, historyOptions );
+                    history_VOCDensity( historySvc );
+                    history_CurrentTemperature( historySvc );
+                    history_CurrentRelativeHumidity( historySvc );
+                    services.push( historySvc );
+                } else if( config.history ) {
                     let historyOptions = new HistoryOptions();
                     let historySvc = new HistoryService( 'room', { displayName: name, log: log }, historyOptions );
                     if( config.topics.getAirQualityPPM ) {
@@ -3331,7 +3477,7 @@ function makeThing( log, accessoryConfig, api ) {
                 if( config.zones ) {
                     let serviceLabel = new Service.ServiceLabel();
                     serviceLabel.setCharacteristic( Characteristic.ServiceLabelNamespace, Characteristic.ServiceLabelNamespace.ARABIC_NUMERALS );
-                    services.push( serviceLabel )
+                    services.push( serviceLabel );
                     config.zones.forEach( function( zone, index ) {
                         let zoneId = index + 1;
                         let zoneName = zone.name || ''; // default name doesn't seem to work
@@ -3495,4 +3641,4 @@ module.exports = function( homebridge ) {
     homebridgePath = homebridge.user.storagePath();
 
     homebridge.registerAccessory( "homebridge-mqttthing", "mqttthing", makeThing );
-}
+};

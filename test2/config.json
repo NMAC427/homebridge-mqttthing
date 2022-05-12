@@ -13,23 +13,11 @@
             "sudo": false
         }
     ],
-    "accessories": [
-        {
-            "type": "outlet",
-            "name": "Test Outlet",
-            "url": "192.168.10.35",
-            "topics": {
-                "setOn": "test/outlet/on",
-                "getWatts": "test/outlet/watts",
-                "getVolts": "test/outlet/voltage"
-            },
-            "accessory": "mqttthing",
-            "logMqtt": true
-        },
+    "disabledAccessories": [
         {
             "type": "lightbulb-ColTemp",
             "name": "Light-Temp",
-            "url": "192.168.10.35",
+            "url": "homebridge2",
             "logMqtt": true,
             "topics": {
                 "setOn": "testTempLight/setOn",
@@ -46,7 +34,7 @@
         {
             "type": "lightbulb-Colour",
             "name": "Light-Colour",
-            "url": "192.168.10.35",
+            "url": "homebridge2",
             "logMqtt": true,
             "debounceRecvms": 250,
             "topics": {
@@ -64,7 +52,7 @@
             "type": "valve",
             "valveType": "sprinkler",
             "name": "Sprinkler",
-            "url": "mqtt://192.168.10.35:1883",
+            "url": "homebridge2",
             "topics": {
                 "getActive": "test/sprinkler/getActive",
                 "setActive": "test/sprinkler/setActive",
@@ -78,7 +66,7 @@
         {
             "type": "television",
             "name": "Tasmota-TV",
-            "url": "homebridge",
+            "url": "homebridge2",
             "logMqtt": true,
             "accessory": "mqttthing",
             "topics": {
@@ -121,7 +109,7 @@
             "accessory": "mqttthing",
             "type": "switch",
             "name": "Toggle Switch",
-            "url": "homebridge",
+            "url": "homebridge2",
             "logMqtt": true,
             "topics": {
                 "getOn": "test/toggle/get",
@@ -133,7 +121,7 @@
             "accessory": "mqttthing",
             "type": "doorbell",
             "name": "Door Bell",
-            "url": "homebridge",
+            "url": "homebridge2",
             "caption": "Front Door Bell",
             "topics": {
                 "getSwitch": {
@@ -152,11 +140,10 @@
             "logMqtt": true
         },
         {
-            "url": "homebridge",
+            "url": "homebridge2",
             "type": "switch",
             "name": "Tasmota05s",
-            "username": "admin",
-            "password": "admin",
+            "logMqtt": true,
             "topics": {
                 "getOnline": "tele/tasmota05s/STATE",
                 "getOn": {
@@ -174,7 +161,7 @@
             "accessory": "mqttthing",
             "type": "lightbulb",
             "name": "Test RGB Light",
-            "url": "mqtt://192.168.10.35:1883",
+            "url": "homebridge2",
             "topics": {
                 "getRGB": "test/rgblight/get",
                 "setRGB": "test/rgblight/set",
@@ -199,7 +186,7 @@
             "accessory": "mqttthing",
             "type": "lightbulb-RGB",
             "name": "Winter-Light",
-            "url": "homebridge",
+            "url": "homebridge2",
             "topics": {
                 "getRGB": {
                     "topic": "light/get",
@@ -227,7 +214,7 @@
         {
             "type": "statelessProgrammableSwitch",
             "name": "Hall Entry",
-            "url": "homebridge",
+            "url": "homebridge2",
             "topics": {
                 "getSwitch": "zigbee2mqtt/0x0017880104e6c096",
                 "getBatteryLevel": "zigbee2mqtt/0x0017880104e6c096",
@@ -256,7 +243,7 @@
             "accessory": "mqttthing",
             "type": "custom",
             "name": "Composite",
-            "url": "homebridge",
+            "url": "homebridge2",
             "logMqtt": true,
             "services": [
                 {
@@ -295,7 +282,7 @@
             "accessory": "mqttthing",
             "type": "custom",
             "name": "Flower Care",
-            "url": "homebridge",
+            "url": "homebridge2",
             "logMqtt": true,
             "codec": "json",
             "jsonCodec": {
@@ -343,7 +330,7 @@
             "accessory": "mqttthing",
             "type": "statelessProgrammableSwitch",
             "name": "4 Way Switch",
-            "url": "homebridge",
+            "url": "homebridge2",
             "logMqtt": true,
             "topics": {
                 "getOnline": "zigbee2mqtt/bridge/state",
@@ -362,9 +349,26 @@
             }
         },
         {
+            "accessory": "mqttthing",
+            "type": "statelessProgrammableSwitch",
+            "name": "Multi-switch",
+            "url": "homebridge2",
+            "logMqtt": true,
+            "topics": {
+                "getSwitch": [ {
+                    "topic": "test/multiswitch",
+                    "apply": "let msg = JSON.parse( message ); if( msg.id === 1 ) { return msg.state; }"
+                }, {
+                    "topic": "test/multiswitch",
+                    "apply": "let msg = JSON.parse( message ); if( msg.id === 2 ) { return msg.state; }"
+                },
+                "test/multiswitch3$.state" ]
+            }
+        },
+        {
             "type": "lightbulb-RGBWW",
             "name": "Test RGBWW Light",
-            "url": "mqtt://192.168.10.35:1883",
+            "url": "homebridge2",
             "logMqtt": true,
             "topics": {
                 "getRGBWW": "test/rgbwwlight/rgb",
@@ -376,22 +380,25 @@
         {
             "type": "fan",
             "name": "Test Fan",
-            "url": "mqtt://192.168.10.35:1883",
+            "url": "homebridge2",
             "logMqtt": true,
             "topics": {
                 "getRotationDirection": "test/fan/getRotationDirection",
                 "setRotationDirection": "test/fan/setRotationDirection",
                 "setRotationSpeed": "test/fan/setRotationSpeed",
-                "getRotationSpeed": "test/fan/getRotationSpeed"
+                "getRotationSpeed": "test/fan/getRotationSpeed",
+                "setOn": "test/fan/setOn",
+                "getOn": "test/fan/getOn"
             },
             "integerValue": true,
-            "accessory": "mqttthing"
+            "accessory": "mqttthing",
+            "optimizePublishing": true
         },
         {
             "accessory": "mqttthing",
             "type": "battery",
             "name": "Test Battery",
-            "url": "mqtt://192.168.10.35:1883",
+            "url": "homebridge2",
             "logMqtt": true,
             "topics": {
                 "getBatteryLevel": "battery/level",
@@ -401,7 +408,7 @@
         {
             "type": "lightbulb-RGBWW",
             "name": "Test RGBWW",
-            "url": "192.168.10.35",
+            "url": "homebridge2",
             "logMqtt": true,
             "topics": {
                 "setRGBWW": "rgbww/rgbww",
@@ -413,7 +420,7 @@
         {
             "type": "thermostat",
             "name": "Termostat",
-            "url": "192.168.10.35",
+            "url": "homebridge2",
             "topics": {
                 "getCoolingThresholdTemperature": "/termostat/espSogutmaEsik",
                 "setCoolingThresholdTemperature": "/termostat/homekitSogutmaEsik",
@@ -436,7 +443,7 @@
         {
             "type": "lightbulb-RGBWW",
             "name": "Office Lamp 1",
-            "url": "192.168.10.35",
+            "url": "homebridge2",
             "topics": {
                 "setRGBWW": "15858303/RGBWW",
                 "setOn": "15858303/State"
@@ -448,7 +455,7 @@
         {
             "type": "lightbulb-RGBWW",
             "name": "Office Lamp 2",
-            "url": "192.168.10.35",
+            "url": "homebridge2",
             "topics": {
                 "setRGBWW": "8387/RGBWW",
                 "setOn": "8387/State"
@@ -460,7 +467,7 @@
         {
             "type": "lightbulb-White",
             "name": "LightDim255",
-            "url": "192.168.10.35",
+            "url": "homebridge2",
             "logMqtt": true,
             "topics": {
                 "getWhite": "light255/get",
@@ -473,22 +480,163 @@
             "accessory": "mqttthing",
             "type": "airQualitySensor",
             "name": "Air Quality",
-            "url": "192.168.10.35",
+            "url": "homebridge2",
             "logMqtt": true,
             "topics": {
-                "getAirQuality": "test/airquality"
+                "getAirQuality": "test/airquality",
+                "getCurrentTemperature": "test/aqTemp"
             },
-            "airQualityValues": [ "0", "1", "2", "3", "4", "5" ]
+            "airQualityValues": [ "0", "1", "2", "3", "4", "5" ],
+            "history": true,
+            "room2": true
         },
         {
             "accessory": "mqttthing",
             "type": "occupancySensor",
             "name": "Occupancy Sensor",
-            "url": "192.168.10.35",
+            "url": "homebridge2",
             "logMqtt": true,
             "topics": {
                 "getOccupancyDetected": "test/occupancy"
             }
+        }, {
+            "name": "AMAX",
+            "accessory": "mqttthing",
+            "url": "homebridge2",
+            "username": "user",
+            "password": "passwd",
+            "type": "securitySystem",
+            "codec": "shellyAMAX",
+            "ShellyGen": 1,
+            "AMAX": {
+                "setState": {
+                    "Armed": {
+                        "name": "shellies/shellyuni-98CDAC25XXXX",
+                        "id": 0,
+                        "ACTIVE": "on"
+                    },
+                    "Disarmed": {
+                        "name": "shellies/shellyuni-98CDAC25XXXX",
+                        "id": 0,
+                        "ACTIVE": "on"
+                    }
+                },
+                "getState": {
+                    "Armed": {
+                        "name": "shellies/shellyuni-98CDAC25XXXX",
+                        "id": 0,
+                        "ACTIVE": 1
+                    },
+                    "Triggered": {
+                        "name": "shellies/shellyuni-98CDAC25XXXX",
+                        "id": 1,
+                        "ACTIVE": 0
+                    },
+                    "AltTriggered": {
+                        "name": "shellies/shellyuni-98CDAC25XXXX",
+                        "id": 1,
+                        "ACTIVE": 1
+                    }
+                }
+            },
+            "targetStateValues": [
+                "SA",
+                "AA",
+                "NA",
+                "D"
+            ],
+            "currentStateValues": [
+                "SA",
+                "AA",
+                "NA",
+                "D",
+                "T"
+            ],
+            "restrictTargetState": [
+                1,
+                3
+            ],
+            "logMqtt": true
+        }, {
+            "accessory": "mqttthing",
+            "type": "door",
+            "name": "Door",
+            "url": "homebridge2",
+            "logMqtt": "true",
+            "topics": {
+                "getCurrentPosition": "test/door/getCurrentPosition",
+                "setTargetPosition": "test/door/setTargetPosition",
+                "getPositionState": "test/door/getPositionState"
+            },
+            "minPosition": 10,
+            "maxPosition": 60
+        }, {
+            "type": "weatherStation",
+            "name": "WeatherPI",
+            "topics": {
+                "getAirPressure": "weatherstation/getAirPressure",
+                "getRain1h": "weatherstation/getRain1h",
+                "getRain24h": "weatherstation/getRain24h",
+                "getWindDirection": "weatherstation/getWindDirection",
+                "getWindSpeed": "weatherstation/getWindSpeed",
+                "getCurrentRelativeHumidity": "weatherstation/getCurrentRelativeHumidity",
+                "getCurrentTemperature": "weatherstation/getCurrentTemperature"
+            },
+            "history": true,
+            "accessory": "mqttthing"
+        }
+    ],
+    "accessories": [
+        {
+            "type": "outlet",
+            "name": "Test Outlet",
+            "url": "homebridge2",
+            "topics": {
+                "setOn": "test/outlet/on",
+                "getInUse": "test/outlet/inuse",
+                "getWatts": "test/outlet/watts",
+                "getVolts": "test/outlet/voltage",
+                "getAmperes": "test/outlet/amps"
+            },
+            "accessory": "mqttthing",
+            "logMqtt": true,
+            "minVolts": 0,
+            "maxVolts": 30
+        },
+        {
+            "accessory": "mqttthing",
+            "type": "lightbulb",
+            "url": "homebridge2",
+            "name": "Escalier",
+            "topics": {
+                "getOn": {
+                    "topic": "test/Escalier",
+                    "apply": "return JSON.parse(message).state_right"
+                },
+                "setOn": "test/Escalier/right/set",
+                "getOnline": {
+                    "topic": "zigbee2mqtt/boutonentree2/availability",
+                    "apply": "return message == 'online' ? 'ON' : 'OFF';"
+                }
+            },
+            "logMqtt": true,
+            "integerValue": false,
+            "onValue": "ON",
+            "offValue": "OFF",
+            "turnOffAfterms": "120000",
+            "onlineValue": "ON",
+            "offlineValue": "OFF"
+        }, {
+            "accessory": "mqttthing",
+            "type": "lightbulb",
+            "url": "homebridge2",
+            "name": "Simple light",
+            "topics": {
+                "getOn": "fake/light/getOn",
+                "setOn": "fake/light/setOn"
+            },
+            "integerValue": true,
+            "logMqtt": true
         }
     ]
 }

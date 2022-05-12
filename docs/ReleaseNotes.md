@@ -5,6 +5,53 @@
 
 # Homebridge MQTT-Thing: Release Notes
 
+### Version 1.1.41
++ Added extendedTopic info to codec calls (thanks, Flavio De Stefano)
+
+### Version 1.1.40
++ Added configurable minimum and maximum voltage for outlet (minVolts, maxVolts)
+
+### Version 1.1.39
++ Fix RGB light validation errors (issue #510)
+
+### Version 1.1.38
++ Fix to use valid initial value for airPressure (0 invalid)
+
+### Version 1.1.37
++ Update to MQTT 4.3.2
++ Fixed characteristic_TemperatureDisplayUnits for airQualitySensor
+
+### Version 1.1.36
++ Miscellaneous fixes to pull requests merged in version 1.1.33
+
+### Version 1.1.35
++ Added support for MQTTTHING_ environment variables providing default MQTT settings (thanks, Robert Redgwell)
+
+### Version 1.1.34
++ Added Door
++ Add minimum and maximum position for window, door and windowCovering
+
+### Version 1.1.33
++ Revert change in 1.1.32. MQTT-Thing now requires Node.js 14 or later.
++ Engines updated to require Homebridge 1.3.5 and Node.js 14 (thanks, Donavan Becker)
++ Fixed typo in documentation (thanks, Brian White)
++ Fixed duration characteristic validation error message (thanks, Thomas Vandahl)
++ Moved codec loading earlier to allow codecs to manipulate the configuration (thanks, Martin)
++ Added water level characteristic to leak sensor (thanks, Moritz)
++ Added max wind and dewpoint characteristics to weather station (thanks, 2610)
++ Added jsonpath support (thanks, Antonio Yip)
++ Added Eve Room 2 support for air quality sensor (thanks, D4rk)
++ Don't set MQTT retain in example config (thanks, iGod42)
++ Added AltSensorState to alarm system (thanks, Ferme de Pommerieux)
++ Added codec for Bosch AMAX with Shelly switches (thanks, Ferme de Pommerieux)
+
+### Version 1.1.32
++ Improve compatibility with older Node.js versions
+
+### Version 1.1.31
++ Improve null handling (multicharacteristic) (thanks, Jakub Samek)
++ Added optimizePublishing option
+
 ### Version 1.1.30
 + Fixed out of range default voltage
 + Validation tweaks

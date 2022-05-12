@@ -27,6 +27,7 @@ MQTT topics used fall into two categories:
    * [History Service](#history-service)
    * [Confirmation](#confirmation)
    * [Codecs](#codecs)
+   * [JSONPath](#jsonpath)
    * [Validation](#validation)
    * [Accessories](#accessories)
    * [Grouped Accessories](#grouped-accessories)
@@ -44,7 +45,7 @@ The following settings apply to all device types:
     "username": "MQTT_username",
     "password": "MQTT_password",
     "mqttOptions": { "keepalive": 30 },
-    "mqttPubOptions": { "retain": true },
+    "mqttPubOptions": { "retain": false },
     "logMqtt": true,
     "topics": {
         "getName": 	        "my/get/name/topic",
@@ -64,6 +65,7 @@ The following settings apply to all device types:
     "confirmationPeriodms": 1000,
     "retryLimit": 5,
     "debounceRecvms": 200,
+    "optimizePublishing": false,
     "validate": true
 }
 ```
@@ -96,6 +98,17 @@ When MQTTS (MQTT over TLS) is used, the `mqttOptions` object is passed through t
 
 `debounceRecvms` - Whenever receiving a message on any configured topic, wait for the number of milliseconds specified before notifying Homekit. If a subsequent message is received during the debounce period, the debounce timer is restarted. This can be useful to filter extraneous notification messages from accessories.
 
+`optimizePublishing` - Whenever publishing a message on any topic, don't republish the previously-published value.
+
+#### Env var overrides
+In addition to setting the MQTT settings in config, you can also set them using environment variable overrides. Configured values in the config.json will take precedence over any environment variables.
+
+| Environment variable | Config key |
+|----------------------|------------|
+| MQTTTHING_USERNAME   | `username` |
+| MQTTTHING_PASSWORD   | `password` |
+| MQTTTHING_URL        | `url`      |
+
 ### MQTT Topics
 
 MQTT Topics are configured within a `topics` object. Most topics are optional (including all of the topics described in this section).
@@ -112,7 +125,8 @@ MQTT Topics are configured within a `topics` object. Most topics are optional (i
 
 ### Apply Functions
 
-User functions may be applied to MQTT messages for custom payload encoding/decoding. Apply functions do this within the main configuration file, but are not supported by config-ui-x. Alternatively, an external codec may be used (see [Codecs](#codecs)).
+User functions may be applied to MQTT messages for custom payload encoding/decoding. Apply functions do this within the main configuration file, but are not supported by config-ui-x. Alternatively, an external codec may be used (see [Codecs](#codecs)). When parsing JSON from messages, the [JSONPath](#jsonpath) support
+may be useful.
 
 If an MQTT message is not a simple value or does not match the expected syntax, it is possible to specify a JavaScript function that is called for the message every time it is received/published. For this, the topic string in the configuration can be replaced with an object with these properties:
 
@@ -224,7 +238,7 @@ Avoid the use of "/" in characteristics of the Information Service (e.g. serial 
 
 ### Confirmation
 
-Some accessories support confirmation for some of their 'set' topics. When enabled by configuring `confirmationPeriodms`, the accessory *must* echo anything sent to appropriate `setX` subject(s) to the corresponding `getX` subject(s). Where homebridge-mqttthing doesn't see a confirmation within the configured configuration period (specified in milliseconds), it will publish the set message again. Messages will be republished up to 3 times by default, but this can be changed by also specifying `retryLimit`.
+Some accessories support confirmation for some of their 'set' topics. When enabled by configuring `confirmationPeriodms`, the accessory *must* echo anything sent to appropriate `setX` subject(s) to the corresponding `getX` subject(s). Where homebridge-mqttthing doesn't see a confirmation within the configured confirmation period (specified in milliseconds), it will publish the set message again. Messages will be republished up to 3 times by default, but this can be changed by also specifying `retryLimit`.
 
 Accessories supporting message confirmation list the topics supporting message confirmation below.
 
@@ -236,6 +250,45 @@ Rather like [apply functions](#apply-functions), a codec can be used to apply tr
 in a separate JavaScript file which is referenced by the configuration.
 
 For further details, please see [Codecs.md](Codecs.md).
+
+### JSONPath
+
+[JSONPath syntax](https://github.com/dchester/jsonpath#jsonpath-syntax) may now be used to extract values from JSON format messages. JSONPath syntax is introduced with a `$` character in the topic name. MQTT-Thing subscribes to the topic before the `$`, and decodes the received JSON using the JSONPath syntax following the `$`.
+
+For example, using the following configuration:
+
+```json
+    {
+    "type": "humiditySensor",
+    "name": "Sonoff-sv-humidity",
+    "topics": {
+        "getCurrentRelativeHumidity": "tele/sonoff-sv/SENSOR$.DHT11.Humidity"
+    },
+    "accessory": "mqttthing"
+    },
+    {
+    "type": "temperatureSensor",
+    "name": "Sonoff-sv-temperature",
+    "topics": {
+        "getCurrentTemperature": "tele/sonoff-sv/SENSOR$.DHT11.Temperature"
+    },
+    "accessory": "mqttthing"
+    }
+```
+
+Published message:
+
+```
+topic: tele/sonoff-sv/SENSOR
+message: {"Time":"2021-08-26T15:35:01","DHT11":{"Temperature":19.0,"Humidity":35.0},"TempUnit":"C"}
+```
+
+Results:
+
+```
+Sonoff-sv-humidity : 35
+Sonoff-sv-temperature: 19
+```
 
 ### Validation
 

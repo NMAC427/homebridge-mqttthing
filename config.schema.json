@@ -41,6 +41,12 @@
                         ]
                     },
                     {
+                        "title": "Door",
+                        "enum": [
+                            "door"
+                        ]
+                    },
+                    {
                         "title": "Doorbell",
                         "enum": [
                             "doorbell"
@@ -317,6 +323,11 @@
                 "title": "Receive Debounce (ms)",
                 "description": "Whenever receiving a message on any configured topic, wait for the number of milliseconds specified before notifying Homekit. If a subsequent message is received during the debounce period, the debounce timer is restarted. This can be useful to filter extraneous notification messages from accessories."
             },
+            "optimizePublishing": {
+                "type": "boolean",
+                "title": "Optimize Publishing",
+                "description": "Set to true to suppress republishing of the previously-published value (on each topic)"
+            },
             "topics": {
                 "type": "object",
                 "title": "Topics",
@@ -548,6 +559,20 @@
                     "getWindSpeed": {
                         "type": "string",
                         "description": "Topic used to notify mqttthing of 'wind speed [km/h]' (optional, Eve-only)",
+                        "condition": {
+                            "functionBody": "return ['weatherStation'].includes(model.type);"
+                        }
+                    },
+                     "getmaxWind": {
+                        "type": "string",
+                        "description": "Topic used to notify mqttthing of 'wind speed [km/h]' (optional, Eve-only)",
+                        "condition": {
+                            "functionBody": "return ['weatherStation'].includes(model.type);"
+                        }
+                    },
+                     "getDewPoint": {
+                        "type": "string",
+                        "description": "Topic used to notify mqttthing of 'DewPoint' (optional, Eve-only)",
                         "condition": {
                             "functionBody": "return ['weatherStation'].includes(model.type);"
                         }
@@ -1018,6 +1043,13 @@
                         "description": "Topic used to notify mqttthing of 'status tampered'",
                         "condition": {
                             "functionBody": "return ['airPressureSensor','airQualitySensor','carbonDioxideSensor','carbonMonoxideSensor','contactSensor','humiditySensor','leakSensor','lightSensor','motionSensor','occupancySensor','securitySystem','smokeSensor','temperatureSensor','valve','weatherStation'].includes(model.type);"
+                        }
+                    },
+                    "getAltSensorState": {
+                        "type": "string",
+                        "description": "Topic used to notify mqttthing of 'Alternate Sensor State'",
+                        "condition": {
+                            "functionBody": "return ['securitySystem'].includes(model.type);"
                         }
                     },
                     "getSulphurDioxideDensity": {
@@ -1584,6 +1616,22 @@
                     "functionBody": "return ['lightbulb','lightbulb-ColTemp'].includes(model.type);"
                 }
             },
+            "minPosition": {
+                "type": "integer",
+                "title": "Minimum position value",
+                "description": "Minimum position value for target position and current position",
+                "condition": {
+                    "functionBody": "return ['windowCovering','window','door'].includes(model.type);"
+                }
+            },
+            "maxPosition": {
+                "type": "integer",
+                "title": "Maximum position value",
+                "description": "Maximum position value for target position and current position",
+                "condition": {
+                    "functionBody": "return ['windowCovering','window','door'].includes(model.type);"
+                }
+            },
             "targetStateValues": {
                 "type": "array",
                 "items": {
@@ -1677,7 +1725,8 @@
                 "mqttOptions.keepalive",
                 "mqttPubOptions.retain",
                 "codec",
-                "debounceRecvms"
+                "debounceRecvms",
+                "optimizePublishing"
             ]
         },
         {
@@ -1813,6 +1862,7 @@
                 "topics.getStatusLowBattery",
                 "topics.getChargingState",
                 "topics.getStatusTampered",
+                "topics.getAltSensorState",
                 "topics.getOnline",
                 "topics.getFilterChangeIndication",
                 "topics.getFilterLifeLevel",
@@ -1846,6 +1896,8 @@
                 "switchWhites",
                 "minColorTemperature",
                 "maxColorTemperature",
+                "minPosition",
+                "maxPosition",
                 "durationTimer",
                 "minDuration",
                 "maxDuration",

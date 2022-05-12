@@ -20,6 +20,7 @@ and generate additional messages as required.
    * [Example Codecs](#examples)
    * [Built-in Codecs](#built-in-codecs)
       * [JSON Codec](#json-codec-json)
+      * [Shelly AMAX Codec](#shelly-amax-codec-shellyamax)
 
 ## Structure
 
@@ -111,6 +112,7 @@ The `encode()` function is called to encode a message before publishing it to MQ
    * `info` is an object holding:
       * `info.topic` - the MQTT topic to be published
       * `info.property` - the property associated with the publishing operation
+      * `info.extendedTopic` - the whole object passed in the configuration (`null` if topic was a string)
    * `output` is a function which may be called to deliver the encoded value asynchronously
 
 The `encode()` function may either return the encoded message, or it may deliver it asynchronously by passing it as a parameter to the provided `output` function. It if does neither, no value will be published.
@@ -123,6 +125,7 @@ The `decode`() function is called to decode a message received from MQTT before 
    * `info` is an object holding:
       * `info.topic` - the MQTT topic received
       * `info.property` the property associated with the received message
+      * `info.extendedTopic` - the whole object passed in the configuration (`null` if topic was a string)
    * `output` is a function which may be called to deliver the decoded value asynchronously
 
 The `decode()` function may either return the decoded message, or it may deliver it asynchronously by passing it as a parameter to the provided `output` function. If it does neither, no notification will be passed on to MQTT-Thing.
@@ -251,7 +254,7 @@ This section lists the properties available for each accessory type. All accesso
 
 ### Weather Station
 
-`currentTemperature`, `statusActive`, `statusFault`, `statusTampered`, `statusLowBattery`, `currentRelativeHumidity`, `airPressure`, `weatherCondition`, `rain1h`, `rain24h`, `uvIndex`, `visibility`, `windDirection`, `windSpeed`
+`currentTemperature`, `statusActive`, `statusFault`, `statusTampered`, `statusLowBattery`, `currentRelativeHumidity`, `airPressure`, `weatherCondition`, `rain1h`, `rain24h`, `uvIndex`, `visibility`, `windDirection`, `windSpeed`, `maxwindSpeed`, `Dewpoint`
 
 ### Window
 
@@ -420,3 +423,71 @@ For example, the following accessory configuration:
 ... sends and receives messages like:
 
 `{"version":1,"sender":"MQTT-Thing","state":{"power":true,"rgb":"125,82,255"}}`
+
+### Shelly AMAX Codec (shellyAMAX)
+
+The shellyAMAX Codec, created by Ferme de Pommerieux, allows the use of a Bosch AMAX alarm system with Shelly switches.
+
+Example configuration:
+
+```json
+{
+    "name": "AMAX",
+    "accessory": "mqttthing",
+    "url": "url",
+    "username": "user",
+    "password": "passwd",
+    "type": "securitySystem",
+    "codec": "shellyAMAX",
+    "ShellyGen": 1,
+    "AMAX": {
+        "setState": {
+            "Armed": {
+                "name": "shellies/shellyuni-98CDAC25XXXX",
+                "id": 0,
+                "ACTIVE": "on"
+            },
+            "Disarmed": {
+                "name": "shellies/shellyuni-98CDAC25XXXX",
+                "id": 0,
+                "ACTIVE": "on"
+            }
+        },
+        "getState": {
+            "Armed": {
+                "name": "shellies/shellyuni-98CDAC25XXXX",
+                "id": 0,
+                "ACTIVE": 1
+            },
+            "Triggered": {
+                "name": "shellies/shellyuni-98CDAC25XXXX",
+                "id": 1,
+                "ACTIVE": 0
+            },
+            "AltTriggered": {
+                "name": "shellies/shellyuni-98CDAC25XXXX",
+                "id": 1,
+                "ACTIVE": 1
+            }
+        }
+    },
+    "targetStateValues": [
+        "SA",
+        "AA",
+        "NA",
+        "D"
+    ],
+    "currentStateValues": [
+        "SA",
+        "AA",
+        "NA",
+        "D",
+        "T"
+    ],
+    "restrictTargetState": [
+        1,
+        3
+    ],
+    "logMqtt": true
+}
+```

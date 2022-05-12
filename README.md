@@ -11,7 +11,13 @@
    * [Supported Accessories](#supported-accessories)
    * [Release notes](docs/ReleaseNotes.md)
 
+## Alternatives
+
+MQTT-Thing allows a wide range of Homekit accessory types to be integrated using MQTT, and has some quite flexible configuration options which are very helpful in many scenarios. However, if you want quick and simple integration with Zigbee devices exposed through Zigbee2MQTT you should also consider the [z2m plugin](https://z2m.dev/).
+
 ## Compatibility with previous versions
+
+**From version 1.1.33, MQTT-Thing requires Node.js 14 or later.**
 
 **From version 1.1.x, raw JavaScript values for Boolean properties are passed to MQTT apply functions.** This may change published message formats, e.g. when apply functions are used to build JSON strings.
 
@@ -46,6 +52,7 @@ The following Homekit accessory types are supported by MQTT-Thing:
    * [Air Quality Sensor](docs/Accessories.md#air-quality-sensor)
    * [Carbon Dioxide Sensor](docs/Accessories.md#carbon-dioxide-sensor)
    * [Contact Sensor](docs/Accessories.md#contact-sensor)
+   * [Door](docs/Accessories.md#door)
    * [Doorbell](docs/Accessories.md#doorbell)
    * [Fan](docs/Accessories.md#fan)
    * [Garage door opener](docs/Accessories.md#garage-door-opener)
